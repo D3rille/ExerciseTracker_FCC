@@ -71,7 +71,10 @@ app.post("/api/users/:_id/exercises", async(req, res)=>{
 
     const newExercise = await exercise.save();
     
-    res.status(200).json(newExercise);
+    res.status(200).json({
+      ...user.toObject(),
+      ...newExercise.toObject()
+    });
     
   } catch (error) {
     console.error(error);
@@ -79,53 +82,61 @@ app.post("/api/users/:_id/exercises", async(req, res)=>{
   }
 })
 
-app.get("/api/users/:_id/logs", async(req, res)=>{
+app.get("/api/users/:_id/logs", async (req, res) => {
   try {
     const userId = req.params?._id;
-    const {limit, from, to} = req.query;
-    let response;
-    
-    //query user account data
+    const { limit, from, to } = req.query;
+
+    // Query user account data
     const user = await Account.findById(userId);
-    
+
     const query = { username: user.username };
     if (from) {
-      query.date = { $gte: new Date(from) };
+      const fromDate = new Date(from);
+      if (isNaN(fromDate.getTime())) {
+        throw new Error('Invalid "from" date format. Please use yyyy-mm-dd format.');
+      }
+      query.date = { $gte: fromDate };
     }
     if (to) {
-      query.date = { ...query.date, $lte: new Date(to) };
+      const toDate = new Date(to);
+      if (isNaN(toDate.getTime())) {
+        throw new Error('Invalid "to" date format. Please use yyyy-mm-dd format.');
+      }
+      query.date = { ...query.date, $lte: toDate };
     }
 
     // Conditionally set the options for limit
     const options = {};
     if (limit) {
-      options.limit = parseInt(limit); // Convert limit to integer
+      const parsedLimit = parseInt(limit);
+      if (isNaN(parsedLimit) || parsedLimit < 0) {
+        throw new Error('Invalid "limit" parameter. Please provide a non-negative integer.');
+      }
+      options.limit = parsedLimit;
     }
 
-
-    const exercises = await Exercise.find(query,{
-      description:1,
-      duration:1,
-      date:1
+    const exercises = await Exercise.find(query, {
+      description: 1,
+      duration: 1,
+      date: 1
     }, options);
 
     const countOfExercises = exercises.length;
-    
 
-    response = {
+    const response = {
       ...user.toObject(),
       count: countOfExercises,
-      log:exercises
-    }
+      log: exercises
+    };
 
     res.status(200).json(response);
-
-    
   } catch (error) {
     console.error(error);
-    res.status(500).json(error);
+    res.status(500).json("Something went wrong!");
   }
-})
+});
+
 
 app.get("/hello", async(req, res)=>{
   const query = await Account.find({});
