@@ -65,7 +65,8 @@ app.post("/api/users/:_id/exercises", async(req, res)=>{
       username: user?.username,
       description,
       duration,
-      date: date ? new Date(date).toDateString() : new Date().toDateString()
+      date: date ? new Date(date).toISOString() : new Date().toISOString()
+      // date: date ? new Date(date).toDateString() : new Date().toDateString()
 
     });
 
@@ -73,7 +74,9 @@ app.post("/api/users/:_id/exercises", async(req, res)=>{
     
     res.status(200).json({
       ...user.toObject(),
-      ...newExercise.toObject()
+      description: newExercise.description,
+      duration: newExercise.duration,
+      date: new Date(newExercise.date).toDateString()
     });
     
   } catch (error) {
@@ -90,20 +93,17 @@ app.get("/api/users/:_id/logs", async (req, res) => {
     // Query user account data
     const user = await Account.findById(userId);
 
-    const query = { username: user.username };
-    if (from) {
+    let query = { username: user.username };
+    if(from && to){
       const fromDate = new Date(from);
-      if (isNaN(fromDate.getTime())) {
+      const toDate = new Date(to);
+      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime()) ) {
         throw new Error('Invalid "from" date format. Please use yyyy-mm-dd format.');
       }
-      query.date = { $gte: fromDate };
-    }
-    if (to) {
-      const toDate = new Date(to);
-      if (isNaN(toDate.getTime())) {
-        throw new Error('Invalid "to" date format. Please use yyyy-mm-dd format.');
+      query.date={
+        $gte: fromDate.toISOString(),
+        $lte: toDate.toISOString()
       }
-      query.date = { ...query.date, $lte: toDate };
     }
 
     // Conditionally set the options for limit
@@ -119,15 +119,21 @@ app.get("/api/users/:_id/logs", async (req, res) => {
     const exercises = await Exercise.find(query, {
       description: 1,
       duration: 1,
-      date: 1
+      date: 1,
+      _id:0
     }, options);
 
     const countOfExercises = exercises.length;
+    const logs = exercises.map(exercise=>{
+      let formatDate = new Date(exercise.date).toDateString();
+      exercise.date = formatDate;
+      return exercise;
+    })
 
     const response = {
       ...user.toObject(),
       count: countOfExercises,
-      log: exercises
+      log: logs
     };
 
     res.status(200).json(response);
