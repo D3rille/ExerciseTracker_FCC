@@ -145,9 +145,10 @@ app.get("/api/users/:_id/logs", async (req, res) => {
 
     const countOfExercises = exercises.length;
     const logs = exercises.map(exercise=>{
-      let formatDate = exercise.date.toDateString();
-      exercise.date = formatDate;
-      return exercise;
+     return {
+      ...exercise.toObject(),
+      date: exercise.date.toDateString()
+     }
     })
 
     const response = {
