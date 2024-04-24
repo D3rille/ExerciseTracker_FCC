@@ -55,11 +55,10 @@ app.get("/api/users", async(req, res)=>{
 //post api to create a new exercise
 app.post("/api/users/:_id/exercises", async(req, res)=>{
   try {
-    const userId = req.params?._id;
     const {description, duration, date} = req.body;
     
     //query the user
-    const user = await Account.findById(userId);
+    const user = await Account.findById(req.body[":_id"] || req.params._id);
 
     const exercise = new Exercise({
       username: user?.username,
