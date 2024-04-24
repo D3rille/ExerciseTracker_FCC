@@ -8,10 +8,7 @@ const Exercise = require('./models/Exercise.js');
 
 require('dotenv').config()
 
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGODB_URI, {})
 .then(()=>console.log("Successfully Connected to MongoDB!"))
 .catch(err=>console.error(err));
 
@@ -52,37 +49,61 @@ app.get("/api/users", async(req, res)=>{
   }
 });
 
-//post api to create a new exercise
-app.post("/api/users/:_id/exercises", async(req, res)=>{
+app.post("/api/users/:_id/exercises", async(req, res) =>{
   try {
-    const {description, duration, date} = req.body;
-    
-    //query the user
-    const user = await Account.findById(req.body[":_id"] || req.params._id);
+    const user = await Account.findById(req.body[":_id"] || req.params._id)
+    if (!user) return res.json({error:"user doesn't exist"})
+    const newExercise = await Exercise.create({
+      username:user.username,
+      description:req.body.description,
+      duration: req.body.duration, 
+      date: (req.body.date)? new Date(req.body.date) : new Date(),
+      })
 
-    const exercise = new Exercise({
-      username: user?.username,
-      description,
-      duration,
-      date: date ? new Date(date).toISOString() : new Date().toISOString()
-      // date: date ? new Date(date).toDateString() : new Date().toDateString()
-
-    });
-
-    const newExercise = await exercise.save();
-    
-    res.status(200).json({
-      ...user.toObject(),
-      description: newExercise.description,
+    return res.json({
+      _id:user._id,
+      username:user.username,
+      date: newExercise.date.toDateString(),
       duration: newExercise.duration,
-      date: new Date(newExercise.date).toDateString()
-    });
-    
+      description:newExercise.description,
+
+    })
   } catch (error) {
-    console.error(error);
-    res.status(500).send("Something went wrong!");
+    console.error(error)
+    return res.json({error:"Operation failed"})
   }
 })
+//post api to create a new exercise
+// app.post("/api/users/:_id/exercises", async(req, res)=>{
+//   try {
+//     const {description, duration, date} = req.body;
+    
+//     //query the user
+//     const user = await Account.findById(req.body[":_id"] || req.params._id);
+
+//     const exercise = new Exercise({
+//       username: user?.username,
+//       description,
+//       duration,
+//       date: date ? new Date(date) : new Date()
+//       // date: date ? new Date(date).toDateString() : new Date().toDateString()
+
+//     });
+
+//     const newExercise = await exercise.save();
+    
+//     res.status(200).json({
+//       ...user.toObject(),
+//       description: newExercise.description,
+//       duration: newExercise.duration,
+//       date: newExercise.date.toDateString()
+//     });
+    
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).send("Something went wrong!");
+//   }
+// })
 
 app.get("/api/users/:_id/logs", async (req, res) => {
   try {
@@ -100,8 +121,8 @@ app.get("/api/users/:_id/logs", async (req, res) => {
         throw new Error('Invalid "from" date format. Please use yyyy-mm-dd format.');
       }
       query.date={
-        $gte: fromDate.toISOString(),
-        $lte: toDate.toISOString()
+        $gte: fromDate,
+        $lte: toDate
       }
     }
 
@@ -124,7 +145,7 @@ app.get("/api/users/:_id/logs", async (req, res) => {
 
     const countOfExercises = exercises.length;
     const logs = exercises.map(exercise=>{
-      let formatDate = new Date(exercise.date).toDateString();
+      let formatDate = exercise.date.toDateString();
       exercise.date = formatDate;
       return exercise;
     })
